@@ -17,7 +17,7 @@
 <body>
     <div id="app">
         <v-app id="inspire">
-            <v-data-table :items="bill" :headers="headers" mobile-breakpoint="200" :hide-default-header="!!Object.keys(selected).length" v-model="selected" item-key="value" class="elevation-1" :height="300">
+            <v-data-table :items="bill" :loading="loading" :headers="headers" mobile-breakpoint="200" :hide-default-header="!!Object.keys(selected).length" v-model="selected" item-key="value" class="elevation-1" :height="300">
                 <template v-slot:top>
                     <v-radio-group v-model="read_type" row @change="load_detail(read_type)">
                         <v-radio label="已結算" value="1"></v-radio>

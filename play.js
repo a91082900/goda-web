@@ -62,7 +62,8 @@ var vm = new Vue({
         }, 
         formValid: false,
         snackbar: {show: false, text: "Hi", color: "success"},
-        user_filter: []
+        user_filter: [],
+        loading: true,
     },
     methods: {
         toggleSelect: function(item, event) {
@@ -259,6 +260,7 @@ var vm = new Vue({
         }, 
         load_detail: function(load_settled) {
             var vm = this;
+            vm.loading = true;
             vm.selected = [];
             var post = {action: "load_detail", load_settled: load_settled, users: vm.user_filter};
             vm.postData(post).then(function(data){
@@ -269,7 +271,8 @@ var vm = new Vue({
                     item["menu_date"] = false;
                 });
                 
-                vm.bill = data;    
+                vm.bill = data;
+                vm.loading = false;    
             });
             
         }

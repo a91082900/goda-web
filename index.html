@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+    <meta charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <v-app id="inspire">
+            <v-data-table :items="bill" :headers="headers" mobile-breakpoint="200" :hide-default-header="!!Object.keys(selected).length" v-model="selected" item-key="value" class="elevation-1" :height="300">
+                <template v-slot:top>
+                    <v-radio-group v-model="read_type" row @change="load_detail(read_type)">
+                        <v-radio label="已結算" value="1"></v-radio>
+                        <v-radio label="未結算" value="0"></v-radio>
+                    </v-radio-group>
+                </template>
+                <template v-if="Object.keys(selected).length" v-slot:header="{ props: { headers } }">
+                    <thead>
+                        <tr style=" background-color: #44A2F8; color: white;">
+                        <th :colspan="headers.length">
+                            <span style="color: white; vertical-align: middle;">已選擇 {{Object.keys(selected).length}} 項 | </span>
+                            <v-btn depressed small @click="allSelect">{{ selected.length == bill.length ? "取消選取" : "全選" }}</v-btn>
+                            
+
+                            <v-dialog v-model="dialog" max-width="290px">
+                                <template v-slot:activator="{ on, attrs }">
+                                    <v-btn depressed small right absolute
+                                        @click="computeRepay"
+                                        v-on="on" v-bind="attrs">{{ parseInt(read_type) ? "取消結算" : "計算" }}</v-btn>
+                                </template>
+                                <v-card>
+                                    <v-card-title class="headline">{{ parseInt(read_type) ? "取消結算" : "計算結果" }}</v-card-title>
+
+                                    <v-card-text>
+                                        <template v-if="read_type=='0'">
+                                            <template v-if="repay.length">
+                                                <div v-for="data in repay">
+                                                    {{ users[data[0]] }} 還 {{ users[data[1]] }} {{data[2]}} 元
+                                                </div>
+                                            </template>
+                                            <div v-else>
+                                                No data
+                                            </div>
+                                        </template>
+                                        <div v-else>
+                                            要取消結算 {{selected.length}} 筆資料嗎？
+                                        </div>
+
+                                    </v-card-text>
+
+                                    <v-card-actions>
+                                        <v-spacer></v-spacer>
+                                        <v-btn text @click="dialog = false">
+                                            取消
+                                        </v-btn>
+    
+                                        <v-btn color="primary" @click="settle">
+                                            {{ parseInt(read_type) ? "確認" : "結算" }}
+                                        </v-btn>
+                                    </v-card-actions>
+                                </v-card>
+                            </v-dialog>
+
+                        </th>
+                        </tr>
+                    </thead>
+                    </template>
+                <template v-slot:body="{ items }">
+                    
+                    <tbody>
+                        <tr v-for="item in items" :key="item.value" :class="selected.indexOf(item) > -1 ?'selectedColor': ''" @click="toggleSelect(item, $event)" style="cursor: pointer;">
+                            <template  v-if="isMobile">
+                                <td style="width: 33%;"> {{ users[item.Borrower] }}</td>
+                                <td style="width: 33%;"> {{ users[item.Lender] }}</td>
+                                <td style="width: 33%;"> {{ item.Dollar }}</td>
+                            </template>
+                            <template v-else>
+                                <td style="width: 20%;"> {{ users[item.Borrower] }}</td>
+                                <td style="width: 20%;"> {{ users[item.Lender] }}</td>
+                                <td style="width: 20%;"> {{ item.Dollar }}</td>
+                                <td style="width: 20%;"> {{ item.Thing }}</td>
+                                <td style="width: 20%;"> {{ item.Date }}</td>
+                            </template>
+                            
+                            <td class="text-right">
+                                <v-menu v-model="item.menu" :close-on-content-click="false" :nudge-width="200">
+                                    <template v-slot:activator="{ on, attrs }">
+                                        <v-icon @click.stop="editData = Object.assign(editData, item)" v-bind="attrs" v-on="on">
+                                            mdi-chevron-down
+                                        </v-icon>
+                                    </template>
+
+                                    <v-card>
+                                        <v-card-text>
+                                            <v-form v-model="editData.formValid">
+                                                <v-select v-model="editData.Borrower" :items="user_select" :rules="rules.userRule(editData)" label="借入"></v-select>
+                                                <v-select v-model="editData.Lender" :items="user_select" :rules="rules.userRule(editData)" label="借出"></v-select>
+                                                <v-text-field v-model.number="editData.Dollar" label="金額" type="number" pattern="[0-9]*" :rules="rules.dollarRule"></v-text-field>
+                                                <v-text-field v-model="editData.Thing" label="事由" :rules="rules.thingRule"></v-text-field>
+                                                <v-menu v-model="editData.menu_date" :close-on-content-click="false" transition="scale-transition" min-width="290px">
+                                                    <template v-slot:activator="{ on, attrs }">
+                                                        <v-text-field v-model="editData.Date" label="日期" readonly v-bind="attrs" v-on="on" :rules="rules.dateRule"></v-text-field>
+                                                    </template>
+                                                    <v-date-picker v-model="editData.Date" @input="editData.menu_date = false"></v-date-picker>
+                                                </v-menu>
+                                            </v-form>
+                                        </v-card-text>
+
+                                        <v-card-actions>
+                                            <v-dialog v-model="confirm" width="250px">
+                                                <template v-slot:activator="{ on, attrs }">
+                                                    <v-btn color="red" text v-on="on" v-bind="attrs">刪除</v-btn>
+                                                </template>
+                                                <v-card>
+                                                    <v-card-title>
+                                                        <span>確定刪除？</span>
+                                                    </v-card-title>
+                                                    <v-divider></v-divider>
+                                                    <v-card-actions>
+                                                        <v-spacer></v-spacer>
+                                                        <v-btn color="blue" text @click="confirm = false">取消</v-btn>
+                                                        <v-btn color="blue" dark @click="del(item)">確定</v-btn>
+                                                    </v-card-actions>
+                                                </v-card>
+                                            </v-dialog>
+                                            
+                                            <v-spacer></v-spacer>
+                                            <v-btn text @click="item.menu=false">取消</v-btn>
+                                            <v-btn color="primary" @click="save(item)" :disabled="!editData.formValid">儲存</v-btn>
+                                        </v-card-actions>
+                                    </v-card>
+                                </v-menu>
+                            </td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-data-table>
+
+            <v-dialog v-model="addBill" max-width="600px" scrollable>
+                <template v-slot:activator="{ on, attrs }">
+                    <v-row align="center">
+                        <v-col class="text-center">
+                            <v-btn
+                                class="my-4"
+                                style="width: 95%;"
+                                color="primary"
+                                v-bind="attrs"
+                                v-on="on">
+                                新增
+                            </v-btn>
+                        </v-col>
+                    
+                    </v-row>
+                </template>
+                <v-card>
+                    <v-card-text>
+                        <v-card-title>新增資料</v-card-title>
+                        <v-form v-model="formValid" ref="newForm">
+                            <v-select v-model="newData.Borrower" :items="user_select" :rules="rules.userRule(newData)" label="借入"></v-select>
+                            <v-select v-model="newData.Lender" :items="user_select" :rules="rules.userRule(newData)" label="借出"></v-select>
+                            <v-text-field v-model.number="newData.Dollar" label="金額" type="number" pattern="[0-9]*" :rules="rules.dollarRule"></v-text-field>
+                            <v-text-field v-model="newData.Thing" label="事由" :rules="rules.thingRule"></v-text-field>
+                            <v-menu transition="scale-transition" :close-on-content-click="false" min-width="290px" v-model="menu1">
+                                <template v-slot:activator="{ on, attrs }">
+                                    <v-text-field v-model="newData.Date" label="日期" readonly :rules="rules.dateRule" v-bind="attrs" v-on="on" ></v-text-field>
+                                </template>
+                                <v-date-picker v-model="newData.Date" @input="menu1 = false"></v-date-picker>
+                            </v-menu>
+                        </v-form>
+                    </v-card-text>
+                    <v-divider></v-divider>
+                    <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn color="blue" text @click="addBill = false">取消</v-btn>
+                        <v-btn color="blue" :dark="formValid" @click="saveNew" :disabled="!formValid">儲存</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+            <v-chip-group
+                v-model="user_filter"
+                column
+                multiple
+                mandatory
+                active-class="deep-purple--text text--accent-4"
+                @change="load_detail(read_type)"
+            >
+                <v-chip v-for="id in Object.keys(users)" :value="id" :key="id">{{users[id]}}</v-chip>
+            </v-chip-group>
+            {{windowWidth}}
+
+        <div class="mdc-snackbar">
+            <div class="mdc-snackbar__surface">
+                <div class="mdc-snackbar__label"
+                    role="status"
+                    aria-live="polite">
+                </div>
+            </div>
+        </div>
+            
+        </v-app>
+    </div>
+
+
+    <script src="play.js"></script>
+    <style>
+        .selectedColor {
+            background-color: #D9ECFE !important;
+        }
+    </style>
+
+</body>
+
+</html>

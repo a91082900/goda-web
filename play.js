@@ -51,7 +51,7 @@ var vm = new Vue({
         repay: [], 
         rules: {
             userRule: function(data) {
-                return [data.Borrower != data.Lender || "借入與借出為同一人"];
+                return [!data.Borrower || !data.Lender || (data.Borrower != data.Lender) || "借入與借出為同一人"];
             },
             dollarRule: [
                 v => !isNaN(v) && v > 0 || "請輸入大於0的整數", 
@@ -151,7 +151,7 @@ var vm = new Vue({
                 dollar: this.newData.Dollar
             }).then(function(data) {
                 if(data) {
-                    vm.bill.push(vm.newData);
+                    vm.bill.unshift(vm.newData);
                     vm.new_clicked("完成");
                 }
                 else
@@ -163,10 +163,10 @@ var vm = new Vue({
                     Date: '', 
                     Thing: '', 
                 };
+				vm.$refs.newForm.resetValidation();
             });
 
             
-            this.$refs.newForm.resetValidation();
         },
         computeRepay: function() {
             if(this.read_type == "1") {
@@ -185,14 +185,12 @@ var vm = new Vue({
                 bill_array[datum.Lender] += datum.Dollar;
             });
         
-            //console.log(bill_array);
-
             var repay = Array();
         
             while(!all_zero(bill_array)) {
-                console.log(bill_array);
+                //console.log(bill_array);
                 var [max, min] = getExtreme(bill_array);
-                console.log(max,bill_array[max], min, bill_array[min]);
+                //console.log(max,bill_array[max], min, bill_array[min]);
                 if(bill_array[max] >= bill_array[min] * -1) {
                     repay.push(Array(min, max, bill_array[min] * -1));
         
@@ -247,7 +245,7 @@ var vm = new Vue({
                 else
                     arr.push(d+"="+data[d]);
             }
-            console.log(arr.join("&"));
+            //console.log(arr.join("&"));
             // Default options are marked with *
             const response = await fetch("post.php", {
                 method: 'POST',
@@ -264,7 +262,7 @@ var vm = new Vue({
             vm.selected = [];
             var post = {action: "load_detail", load_settled: load_settled, users: vm.user_filter};
             vm.postData(post).then(function(data){
-                console.log(data);
+                //console.log(data);
 
                 data.forEach(function(item){
                     item["menu"] = false;
